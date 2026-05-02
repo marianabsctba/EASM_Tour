@@ -190,6 +190,10 @@ body{
 .cert-name{font-size:34px;font-weight:950;margin:18px auto 10px;border-bottom:1px solid rgba(255,209,102,.35);padding-bottom:12px;max-width:600px}
 .signature{font-family:"Brush Script MT","Segoe Script",cursive;font-size:48px;color:var(--yellow);margin-top:22px}
 .topics{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;margin-top:22px;background:rgba(0,215,255,.04);border:1px solid rgba(0,215,255,.14);border-radius:14px;padding:18px}.topics div{font-size:12px;color:#cbdcf5;line-height:1.45}.topics b{color:var(--cyan)}
+.cert-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.cert-actions button{margin-top:0!important}
+.exporting .cert-actions{display:none!important}
+.exporting .cert{box-shadow:none!important}
 .toast{position:fixed;right:18px;bottom:18px;z-index:3000;background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--line2);border-radius:12px;padding:13px 17px;color:var(--cyan);font-family:var(--mono);font-size:12px;box-shadow:var(--shadow);display:none}
 @media(max-width:1100px){.app{grid-template-columns:1fr;grid-template-areas:"hero" "side" "map" "risk" "inventory" "findings" "workflow"}.sidebar{position:relative;height:auto;top:0}.risk{min-height:auto}.topics{grid-template-columns:1fr}}
 @media(max-width:640px){.topbar{align-items:flex-start;flex-direction:column}.kpi{flex:1}.attack-map{height:450px}.node{position:relative!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;margin:8px}.line{display:none}.hotspot{position:relative!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;margin:8px}.workflow-body{flex-direction:column}.arr{transform:rotate(90deg)}}
@@ -201,14 +205,115 @@ body{
 
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
-function downloadPNG(){
+
+
+
+async function downloadPNG(){
   const cert = document.querySelector('.cert');
-  html2canvas(cert).then(canvas=>{
-    const link = document.createElement('a');
-    link.download = 'certificado_easm.png';
-    link.href = canvas.toDataURL();
-    link.click();
+  if(!cert) return;
+
+  document.body.classList.add('exporting');
+
+  const previousTransform = cert.style.transform;
+  cert.style.transform = 'none';
+
+  await new Promise(resolve => setTimeout(resolve, 120));
+
+  const canvas = await html2canvas(cert, {
+    backgroundColor: '#050914',
+    scale: 3,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    removeContainer: true,
+    windowWidth: document.documentElement.scrollWidth,
+    windowHeight: document.documentElement.scrollHeight,
+    onclone: (doc) => {
+      const clonedBody = doc.body;
+      clonedBody.classList.add('exporting');
+
+      const clonedCert = doc.querySelector('.cert');
+      if(clonedCert){
+        clonedCert.style.background = 'linear-gradient(160deg,#091c33,#050914 60%,#0e1730)';
+        clonedCert.style.color = '#e6f3ff';
+        clonedCert.style.boxShadow = 'none';
+      }
+
+      const actions = doc.querySelector('.cert-actions');
+      if(actions) actions.remove();
+
+      const modal = doc.querySelector('#certModal');
+      if(modal){
+        modal.style.background = 'transparent';
+        modal.style.display = 'block';
+        modal.style.position = 'static';
+        modal.style.padding = '0';
+      }
+    }
   });
+
+  cert.style.transform = previousTransform;
+  document.body.classList.remove('exporting');
+
+  const link = document.createElement('a');
+  link.download = 'certificado_easm_be_safe.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
+async function downloadPNG(){
+  const cert = document.querySelector('.cert');
+  if(!cert) return;
+
+  document.body.classList.add('exporting');
+
+  const previousTransform = cert.style.transform;
+  cert.style.transform = 'none';
+
+  await new Promise(resolve => setTimeout(resolve, 120));
+
+  const canvas = await html2canvas(cert, {
+    backgroundColor: '#050914',
+    scale: 3,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    removeContainer: true,
+    windowWidth: document.documentElement.scrollWidth,
+    windowHeight: document.documentElement.scrollHeight,
+    onclone: (doc) => {
+      const clonedBody = doc.body;
+      clonedBody.classList.add('exporting');
+
+      const clonedCert = doc.querySelector('.cert');
+      if(clonedCert){
+        clonedCert.style.background = 'linear-gradient(160deg,#091c33,#050914 60%,#0e1730)';
+        clonedCert.style.color = '#e6f3ff';
+        clonedCert.style.boxShadow = 'none';
+      }
+
+      const actions = doc.querySelector('.cert-actions');
+      if(actions) actions.remove();
+
+      const modal = doc.querySelector('#certModal');
+      if(modal){
+        modal.style.background = 'transparent';
+        modal.style.display = 'block';
+        modal.style.position = 'static';
+        modal.style.padding = '0';
+      }
+    }
+  });
+
+  cert.style.transform = previousTransform;
+  document.body.classList.remove('exporting');
+
+  const link = document.createElement('a');
+  link.download = 'certificado_easm_be_safe.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
 
 </script>
@@ -379,8 +484,10 @@ function downloadPNG(){
       </div>
       <div class="signature">Mariana BS</div>
       <p><b>Mariana BS, Instrutora</b></p>
-      <button class="btn hot" onclick="downloadPNG()" style="margin-top:16px">Baixar PNG</button>
-      <button class="btn" onclick="closeCert()" style="margin-top:16px">Fechar</button>
+      <div class="cert-actions" data-html2canvas-ignore="true">
+        <button class="btn hot" onclick="downloadPNG()">Baixar PNG</button>
+        <button class="btn" onclick="closeCert()">Fechar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -486,14 +593,60 @@ function issueCert(){playSuccessSound();
 function closeCert(){$("#certModal").classList.remove("show")}
 renderNav();
 
-function downloadPNG(){
+
+
+
+async function downloadPNG(){
   const cert = document.querySelector('.cert');
-  html2canvas(cert).then(canvas=>{
-    const link = document.createElement('a');
-    link.download = 'certificado_easm.png';
-    link.href = canvas.toDataURL();
-    link.click();
+  if(!cert) return;
+
+  document.body.classList.add('exporting');
+
+  const previousTransform = cert.style.transform;
+  cert.style.transform = 'none';
+
+  await new Promise(resolve => setTimeout(resolve, 120));
+
+  const canvas = await html2canvas(cert, {
+    backgroundColor: '#050914',
+    scale: 3,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    removeContainer: true,
+    windowWidth: document.documentElement.scrollWidth,
+    windowHeight: document.documentElement.scrollHeight,
+    onclone: (doc) => {
+      const clonedBody = doc.body;
+      clonedBody.classList.add('exporting');
+
+      const clonedCert = doc.querySelector('.cert');
+      if(clonedCert){
+        clonedCert.style.background = 'linear-gradient(160deg,#091c33,#050914 60%,#0e1730)';
+        clonedCert.style.color = '#e6f3ff';
+        clonedCert.style.boxShadow = 'none';
+      }
+
+      const actions = doc.querySelector('.cert-actions');
+      if(actions) actions.remove();
+
+      const modal = doc.querySelector('#certModal');
+      if(modal){
+        modal.style.background = 'transparent';
+        modal.style.display = 'block';
+        modal.style.position = 'static';
+        modal.style.padding = '0';
+      }
+    }
   });
+
+  cert.style.transform = previousTransform;
+  document.body.classList.remove('exporting');
+
+  const link = document.createElement('a');
+  link.download = 'certificado_easm_be_safe.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
 
 </script>
