@@ -200,6 +200,18 @@ body{
 .surface-legend{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.15em;background:rgba(0,0,0,.22);border:1px solid rgba(0,215,255,.14);padding:7px 9px;border-radius:8px}
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
+function downloadPNG(){
+  const cert = document.querySelector('.cert');
+  html2canvas(cert).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = 'certificado_easm.png';
+    link.href = canvas.toDataURL();
+    link.click();
+  });
+}
+
+</script>
 </head>
 <body>
 <div class="grid-bg"></div><div class="scan"></div>
@@ -367,7 +379,7 @@ body{
       </div>
       <div class="signature">Mariana BS</div>
       <p><b>Mariana BS, Instrutora</b></p>
-      <button class="btn hot" onclick="window.print()" style="margin-top:16px">Imprimir / Salvar PDF</button>
+      <button class="btn hot" onclick="downloadPNG()" style="margin-top:16px">Baixar PNG</button>
       <button class="btn" onclick="closeCert()" style="margin-top:16px">Fechar</button>
     </div>
   </div>
@@ -473,6 +485,17 @@ function issueCert(){playSuccessSound();
 }
 function closeCert(){$("#certModal").classList.remove("show")}
 renderNav();
+
+function downloadPNG(){
+  const cert = document.querySelector('.cert');
+  html2canvas(cert).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = 'certificado_easm.png';
+    link.href = canvas.toDataURL();
+    link.click();
+  });
+}
+
 </script>
 </body>
 </html>
