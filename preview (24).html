@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EASM Be Safe | Enterprise Attack Surface Console</title>
+<style>
+:root{
+  --bg:#050914;--bg2:#081324;--panel:rgba(9,20,39,.94);--panel2:rgba(5,13,27,.96);
+  --line:rgba(111,219,255,.22);--line2:rgba(111,219,255,.48);
+  --txt:#e9f5ff;--muted:#82a2c7;--dim:#497096;
+  --cyan:#00d7ff;--pink:#ff3d78;--green:#00f59f;--yellow:#ffd166;--purple:#9b7bff;
+  --shadow:0 0 35px rgba(0,215,255,.15), 0 24px 80px rgba(0,0,0,.5);
+  --font:Inter,Segoe UI,Arial,sans-serif;--mono:"SFMono-Regular",Consolas,"Share Tech Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;background:
+    radial-gradient(circle at 10% 10%,rgba(0,215,255,.12),transparent 30%),
+    radial-gradient(circle at 88% 4%,rgba(255,61,120,.12),transparent 28%),
+    linear-gradient(180deg,#040711,#071222 60%,#040812);
+  color:var(--txt);font-family:var(--font);overflow-x:hidden;
+}
+.grid-bg{
+  position:fixed;inset:0;pointer-events:none;opacity:.65;
+  background-image:linear-gradient(rgba(0,215,255,.04) 1px, transparent 1px),linear-gradient(90deg,rgba(0,215,255,.04) 1px,transparent 1px);
+  background-size:42px 42px;animation:grid 22s linear infinite;
+}
+@keyframes grid{to{background-position:42px 42px}}
+.scan{
+  position:fixed;left:0;right:0;top:0;height:2px;z-index:4;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.45;animation:scan 4.5s linear infinite;
+}
+@keyframes scan{to{top:100vh}}
+.topbar{
+  position:sticky;top:0;z-index:100;background:linear-gradient(135deg,var(--panel),var(--panel2));
+  border-bottom:1px solid var(--line2);box-shadow:var(--shadow);backdrop-filter:blur(18px);
+  display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;
+}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{
+  width:46px;height:46px;border-radius:14px;background:
+  conic-gradient(from 210deg,var(--cyan),var(--purple),var(--pink),var(--cyan));
+  display:grid;place-items:center;font-size:23px;box-shadow:0 0 28px rgba(0,215,255,.45);
+  position:relative;overflow:hidden
+}
+.logo:after{
+  content:"";position:absolute;inset:5px;border-radius:11px;
+  border:1px solid rgba(255,255,255,.28);pointer-events:none
+}
+.brand h1{font-size:22px;letter-spacing:.04em}.brand h1 span{color:var(--pink)}
+.brand small{display:block;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.28em;margin-top:2px}
+.controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.btn{
+  border:1px solid var(--line);background:rgba(0,215,255,.08);color:var(--cyan);
+  border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:800;font-size:12px;
+  transition:.25s;letter-spacing:.04em
+}
+.btn:hover{box-shadow:0 0 22px rgba(0,215,255,.35);transform:translateY(-1px)}
+.btn.hot{border:0;background:linear-gradient(135deg,var(--pink),#ff7b33);color:white;box-shadow:0 0 22px rgba(255,61,120,.42);animation:pulse 2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 35px rgba(255,61,120,.75)}}
+.clock{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+.ticker{overflow:hidden;border-bottom:1px solid rgba(255,61,120,.25);background:rgba(255,61,120,.08);position:relative;z-index:2}
+.track{display:flex;white-space:nowrap;animation:ticker 45s linear infinite}
+.track span{font-family:var(--mono);font-size:11px;color:#ff88aa;padding:8px 28px}.track b{color:var(--yellow)}
+@keyframes ticker{to{transform:translateX(-50%)}}
+.app{
+  position:relative;z-index:1;padding:16px;display:grid;gap:14px;
+  grid-template-columns:260px 1fr 360px;
+  grid-template-areas:
+    "side hero hero"
+    "side map risk"
+    "side inventory findings"
+    "side workflow workflow";
+}
+.panel{
+  background:
+    linear-gradient(135deg,rgba(10,20,40,.96),rgba(5,13,27,.96)),
+    radial-gradient(circle at 100% 0%,rgba(0,215,255,.08),transparent 35%);
+  border:1px solid var(--line);
+  border-radius:16px;box-shadow:var(--shadow);overflow:hidden;position:relative;
+}
+.panel:hover{border-color:var(--line2)}
+.panel-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.title{font-size:12px;font-weight:900;color:var(--cyan);letter-spacing:.14em;text-transform:uppercase}
+.badge{font-family:var(--mono);font-size:10px;border:1px solid rgba(0,245,159,.3);color:var(--green);background:rgba(0,245,159,.09);padding:4px 9px;border-radius:999px}
+.badge.red{border-color:rgba(255,61,120,.34);color:var(--pink);background:rgba(255,61,120,.1)}
+.badge.yellow{border-color:rgba(255,209,102,.34);color:var(--yellow);background:rgba(255,209,102,.1)}
+.sidebar{grid-area:side;padding:14px;position:sticky;top:74px;height:calc(100vh - 90px);overflow:auto}
+.nav-title{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.22em;margin:10px 0}
+.nav-item{
+  display:flex;gap:10px;align-items:center;padding:12px;border:1px solid transparent;border-radius:12px;
+  color:var(--muted);cursor:pointer;margin-bottom:7px;font-size:13px;font-weight:800;transition:.2s;
+}
+.nav-item:hover,.nav-item.active{border-color:var(--line2);background:rgba(0,215,255,.08);color:var(--txt)}
+.nav-item.done{color:var(--green);background:rgba(0,245,159,.06);border-color:rgba(0,245,159,.2)}
+.progress{height:9px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin:14px 0}
+.bar{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--green));transition:.4s}
+.cert-mini{margin-top:14px;padding:14px;border-radius:14px;background:rgba(255,209,102,.07);border:1px solid rgba(255,209,102,.18)}
+.cert-mini input{width:100%;margin:9px 0;padding:11px;border-radius:8px;border:1px solid rgba(255,209,102,.28);background:rgba(0,0,0,.25);color:var(--txt)}
+.hero{grid-area:hero;padding:18px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.hero h2{font-size:28px;letter-spacing:-.04em;margin-bottom:6px}
+.hero h2:after{content:"";display:block;width:92px;height:3px;border-radius:999px;background:linear-gradient(90deg,var(--cyan),var(--pink));margin-top:10px}
+.hero p{color:var(--muted);line-height:1.55;max-width:760px;font-size:14px}
+.kpis{display:flex;gap:12px;flex-wrap:wrap}
+.kpi{min-width:120px;background:rgba(0,215,255,.06);border:1px solid var(--line);border-radius:12px;padding:13px;text-align:center;cursor:pointer}
+.kpi strong{display:block;font-size:28px;font-family:var(--mono)}.kpi small{font-size:10px;color:var(--dim);letter-spacing:.12em}
+.map{grid-area:map;min-height:390px}
+.risk{grid-area:risk}
+.inventory{grid-area:inventory}
+.findings{grid-area:findings}
+.workflow{grid-area:workflow}
+.attack-map{padding:16px;height:335px;position:relative;background:radial-gradient(circle at center,rgba(0,215,255,.08),transparent 55%)}
+.node{
+  position:absolute;border:1px solid var(--line2);background:rgba(0,215,255,.08);border-radius:14px;
+  padding:10px 12px;min-width:115px;text-align:center;cursor:pointer;transition:.25s;
+}
+.node:hover{transform:scale(1.04);box-shadow:0 0 22px rgba(0,215,255,.28)}
+.node.crit{border-color:rgba(255,61,120,.6);background:rgba(255,61,120,.1)}
+.node.warn{border-color:rgba(255,209,102,.52);background:rgba(255,209,102,.08)}
+.node b{display:block;font-size:12px}.node small{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.line{position:absolute;height:1px;background:linear-gradient(90deg,transparent,rgba(0,215,255,.42),transparent);transform-origin:left center}
+.risk-body{padding:14px;display:grid;gap:10px}
+.risk-row{display:grid;grid-template-columns:1fr 56px;gap:10px;align-items:center;padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px}
+.risk-row span{font-size:12px;font-weight:800}.risk-row small{display:block;color:var(--dim);font-family:var(--mono);font-size:9px;margin-top:2px}
+.score{text-align:right;font-family:var(--mono);font-size:21px;font-weight:900}.score.red{color:var(--pink)}.score.yellow{color:var(--yellow)}.score.green{color:var(--green)}
+.table{width:100%;border-collapse:collapse;font-size:12px}
+.table th{color:var(--dim);font-family:var(--mono);font-size:10px;text-align:left;padding:11px;border-bottom:1px solid var(--line);letter-spacing:.1em}
+.table td{padding:12px 11px;border-bottom:1px solid rgba(255,255,255,.06);color:#cfe2ff}
+.pill{font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:999px;background:rgba(0,215,255,.1);color:var(--cyan);border:1px solid var(--line)}
+.pill.red{color:var(--pink);border-color:rgba(255,61,120,.35);background:rgba(255,61,120,.09)}
+.pill.yellow{color:var(--yellow);border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.08)}
+.find-list{padding:14px;display:grid;gap:9px;max-height:330px;overflow:auto}
+.find{
+  border-left:3px solid var(--pink);padding:10px;border-radius:8px;background:rgba(255,61,120,.08);cursor:pointer;transition:.2s
+}
+.find:hover{transform:translateX(4px);background:rgba(255,61,120,.14)}
+.find.med{border-left-color:var(--yellow);background:rgba(255,209,102,.07)}
+.find.low{border-left-color:var(--cyan);background:rgba(0,215,255,.06)}
+.find b{font-size:12px}.find small{display:block;color:var(--dim);font-family:var(--mono);font-size:10px;margin-top:4px}
+.workflow-body{padding:16px;display:flex;gap:10px;align-items:center;overflow:auto}
+.step{
+  min-width:130px;text-align:center;border:1px solid var(--line);border-radius:12px;background:rgba(0,215,255,.05);padding:14px;cursor:pointer;
+}
+.step:hover{box-shadow:0 0 22px rgba(0,215,255,.25)}.step .ico{font-size:24px}.step b{display:block;font-size:11px;margin:7px 0}.step small{color:var(--dim);font-family:var(--mono);font-size:9px}
+.arr{color:var(--cyan);font-size:20px}
+.hotspot{
+  position:absolute;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--pink),#ff7b33);color:white;border:0;cursor:pointer;font-size:20px;font-weight:900;
+  box-shadow:0 0 0 0 rgba(255,61,120,.8),0 0 24px rgba(255,61,120,.45);animation:hot 1.25s infinite;z-index:20;
+}
+@keyframes hot{70%{box-shadow:0 0 0 18px rgba(255,61,120,0),0 0 24px rgba(255,61,120,.45)}}
+.hotspot.done{background:linear-gradient(135deg,var(--green),var(--cyan));animation:none;color:#001018}
+#hs1{left:235px;top:72px}#hs2{left:26px;top:268px}#hs3{right:80px;top:60px}#hs4{left:45%;bottom:42px}
+#hs5{right:18px;top:80px}#hs6{right:18px;top:164px}#hs7{right:18px;top:248px}
+#hs8{left:190px;top:16px}#hs9{left:16px;top:210px}
+#hs10{right:16px;top:75px}#hs11{right:16px;top:180px}
+#hs12{left:50%;top:22px}
+
+.tour-overlay{position:fixed;inset:0;z-index:1000;display:none;pointer-events:none}
+.tour-overlay.active{display:block}
+.tour-highlight{
+  position:fixed;border:3px solid var(--pink);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,5,12,.68),0 0 34px rgba(255,61,120,.72);
+  z-index:1001;transition:.35s;display:none;pointer-events:none;
+}
+.tour-card{
+  position:fixed;z-index:1002;max-width:390px;min-width:290px;background:linear-gradient(135deg,#0d1d36,#050914);
+  border:2px solid var(--pink);border-radius:16px;padding:18px;box-shadow:0 0 42px rgba(255,61,120,.38),0 28px 90px rgba(0,0,0,.85);
+  display:none;pointer-events:all;
+}
+.tour-x{position:absolute;top:8px;right:10px;background:transparent;border:0;color:var(--muted);font-size:18px;cursor:pointer}
+.tour-progress{height:4px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;margin-bottom:12px}.tour-progress div{height:100%;background:linear-gradient(90deg,var(--pink),var(--yellow));width:0}
+.tour-h{display:flex;gap:10px;align-items:center;margin-bottom:9px}.num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--pink),#ff7b33);font-weight:900}
+.tour-h b{color:var(--cyan);font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+.tour-body{font-size:13px;line-height:1.7;color:#cbdcf5;margin-bottom:10px}.tour-tech{font-family:var(--mono);font-size:10px;color:var(--yellow);background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.18);border-radius:8px;padding:10px;line-height:1.5}
+.tour-actions{display:flex;align-items:center;justify-content:space-between;margin-top:13px}.arrow{width:38px;height:38px;border-radius:50%;border:0;background:linear-gradient(135deg,var(--pink),#ff7b33);color:white;font-size:20px;cursor:pointer;animation:bounce 1.1s infinite}
+@keyframes bounce{50%{transform:scale(1.12)}}.count{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center}.skip{font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer;margin-top:2px}
+.modal{position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(5px)}
+.modal.show{display:flex}.box{width:min(560px,100%);background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--line2);border-radius:18px;padding:22px;box-shadow:var(--shadow);position:relative}.box button{position:absolute;right:12px;top:10px;background:transparent;border:0;color:var(--muted);font-size:22px;cursor:pointer}.box h3{color:var(--cyan);margin-bottom:10px}.box p{color:#cbdcf5;line-height:1.65}.box .tech{margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--green);background:rgba(0,245,159,.07);border:1px solid rgba(0,245,159,.2);border-radius:8px;padding:11px;line-height:1.55}
+.cert-modal{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.94);display:none;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+.cert-modal.show{display:flex}
+.cert{
+  width:min(820px,100%);background:linear-gradient(160deg,#091c33,#050914 60%,#0e1730);border:1px solid rgba(255,209,102,.55);border-radius:24px;
+  box-shadow:0 0 90px rgba(255,209,102,.18);text-align:center;overflow:hidden;position:relative
+}
+.cert:before,.cert:after{content:"";position:absolute;width:70px;height:70px;border-color:rgba(255,209,102,.55);border-style:solid}.cert:before{top:14px;left:14px;border-width:2px 0 0 2px}.cert:after{right:14px;bottom:14px;border-width:0 2px 2px 0}
+.cert-head{padding:32px;background:linear-gradient(135deg,rgba(0,215,255,.12),rgba(255,61,120,.1));border-bottom:1px solid rgba(255,209,102,.18)}
+.cert-head h2{font-size:28px;color:var(--yellow);letter-spacing:.18em}.cert-head small{display:block;color:rgba(255,209,102,.5);font-family:var(--mono);letter-spacing:.4em;margin-top:5px}
+.cert-body2{padding:28px 38px}.ribbon{display:inline-block;color:var(--yellow);border:1px solid rgba(255,209,102,.35);border-radius:999px;padding:7px 18px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;background:rgba(255,209,102,.08)}
+.cert-name{font-size:34px;font-weight:950;margin:18px auto 10px;border-bottom:1px solid rgba(255,209,102,.35);padding-bottom:12px;max-width:600px}
+.signature{font-family:"Brush Script MT","Segoe Script",cursive;font-size:48px;color:var(--yellow);margin-top:22px}
+.topics{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;margin-top:22px;background:rgba(0,215,255,.04);border:1px solid rgba(0,215,255,.14);border-radius:14px;padding:18px}.topics div{font-size:12px;color:#cbdcf5;line-height:1.45}.topics b{color:var(--cyan)}
+.toast{position:fixed;right:18px;bottom:18px;z-index:3000;background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--line2);border-radius:12px;padding:13px 17px;color:var(--cyan);font-family:var(--mono);font-size:12px;box-shadow:var(--shadow);display:none}
+@media(max-width:1100px){.app{grid-template-columns:1fr;grid-template-areas:"hero" "side" "map" "risk" "inventory" "findings" "workflow"}.sidebar{position:relative;height:auto;top:0}.risk{min-height:auto}.topics{grid-template-columns:1fr}}
+@media(max-width:640px){.topbar{align-items:flex-start;flex-direction:column}.kpi{flex:1}.attack-map{height:450px}.node{position:relative!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;margin:8px}.line{display:none}.hotspot{position:relative!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;margin:8px}.workflow-body{flex-direction:column}.arr{transform:rotate(90deg)}}
+
+.radar-ring{position:absolute;left:50%;top:50%;border:1px dashed rgba(0,215,255,.18);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.radar-ring.r1{width:280px;height:180px}
+.radar-ring.r2{width:520px;height:285px}
+.surface-legend{position:absolute;left:14px;bottom:12px;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.15em;background:rgba(0,0,0,.22);border:1px solid rgba(0,215,255,.14);padding:7px 9px;border-radius:8px}
+
+</style>
+</head>
+<body>
+<div class="grid-bg"></div><div class="scan"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">🌐</div>
+    <div>
+      <h1>EASM <span>Be Safe</span></h1>
+      <small>EXTERNAL ATTACK SURFACE CONSOLE</small>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="clock" id="clock"></div>
+    <button class="btn" onclick="toggleMute()" id="muteBtn">🔊 Som</button>
+    <button class="btn" onclick="resetLab()">↺ Reset</button>
+    <button class="btn hot" onclick="startTour()">🎯 Iniciar tour</button>
+  </div>
+</header>
+
+<div class="ticker">
+  <div class="track">
+    <span>⚠ NOVO ATIVO: <b>vpn-old.besafe-lab.io</b> expõe serviço administrativo</span>
+    <span>🔴 POLÍTICA VIOLADA: <b>RDP público</b> detectado em ASN associado</span>
+    <span>🟡 DNS: <b>CNAME órfão</b> com potencial de takeover</span>
+    <span>🔵 CLOUD: bucket público exige validação de ownership</span>
+    <span>🟢 API: ticket automático criado para proprietário provável</span>
+    <span>⚠ NOVO ATIVO: <b>vpn-old.besafe-lab.io</b> expõe serviço administrativo</span>
+    <span>🔴 POLÍTICA VIOLADA: <b>RDP público</b> detectado em ASN associado</span>
+    <span>🟡 DNS: <b>CNAME órfão</b> com potencial de takeover</span>
+  </div>
+</div>
+
+<main class="app">
+  <aside class="panel sidebar" id="side">
+    <div class="title">Tour Progress</div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div style="display:flex;justify-content:space-between;color:var(--muted);font-family:var(--mono);font-size:11px"><span id="doneTxt">0/12</span><span id="pctTxt">0%</span></div>
+    <div class="nav-title">FUNCIONALIDADES EASM</div>
+    <div id="nav"></div>
+    <div class="cert-mini">
+      <div class="title" style="color:var(--yellow)">Certificado</div>
+      <input id="student" placeholder="Nome completo" />
+      <button class="btn hot" style="width:100%" onclick="issueCert()">Emitir certificado</button>
+    </div>
+  </aside>
+
+  <section class="panel hero" id="hero">
+    <div>
+      <div class="title" style="color:var(--pink)">Visão do atacante • não visão do inventário feliz</div>
+      <h2>Surface Command Center</h2>
+      <p>Console simulado de EASM para descoberta contínua, inventário externo, shadow IT, DNS, TLS, cloud, exposição de serviços, priorização de risco, remediação e validação. Parece produto porque a ideia é treinar como se fosse produto... só que sem vendor lock-in e sem dashboard enfeitado para ignorar risco.</p>
+    </div>
+    <div class="kpis">
+      <div class="kpi" onclick="openInfo('Ativos externos','Ativos observáveis publicamente relacionados à organização: domínios, subdomínios, IPs, serviços, certificados, aplicações, cloud e terceiros.','EASM olha de fora para dentro, como um atacante faria.')"><strong>18.742</strong><small>ATIVOS</small></div>
+      <div class="kpi" onclick="openInfo('Desconhecidos','Ativos não gerenciados ou não reconciliados com CMDB, tags, owners ou inventário interno.','Shadow IT é basicamente DevOps com amnésia corporativa.')"><strong style="color:var(--pink)">317</strong><small>UNKNOWN</small></div>
+      <div class="kpi" onclick="openInfo('Exposures','Exposições de risco: portas administrativas, web apps vulneráveis, TLS fraco, DNS órfão, storage público e serviços fora de política.','Nem todo achado é incêndio, mas RDP público já vem com fumaça.')"><strong style="color:var(--yellow)">42</strong><small>EXPOSURES</small></div>
+      <div class="kpi" onclick="openInfo('MTTI','Mean Time To Inventory: tempo médio para descobrir e classificar novo ativo exposto.','Se o atacante descobre antes do SOC, parabéns... ele virou seu inventariante.')"><strong style="color:var(--green)">9m</strong><small>MTTI</small></div>
+    </div>
+  </section>
+
+  <section class="panel map" id="mapPanel">
+    <div class="panel-head"><div class="title">Attack Surface Graph</div><div class="badge red">LIVE EXTERNAL VIEW</div></div>
+    <div class="attack-map" id="attackMap"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="surface-legend">VISÃO EXTERNA • DNS • TLS • CLOUD • ASN</div>
+      <div class="line" style="left:145px;top:95px;width:210px;transform:rotate(18deg)"></div>
+      <div class="line" style="left:350px;top:140px;width:240px;transform:rotate(-14deg)"></div>
+      <div class="line" style="left:310px;top:245px;width:220px;transform:rotate(11deg)"></div>
+      <div class="node" style="left:36px;top:58px" onclick="openInfo('Root Domain','Domínio raiz usado como semente para descoberta. A partir dele, o EASM encontra relações por DNS, certificados, WHOIS, ASN, links e telemetria pública.','Seed ruim gera superfície míope. Seed boa encontra o porão digital.')"><b>besafe-lab.io</b><small>root domain</small></div>
+      <div class="node crit" style="left:300px;top:105px" onclick="openInfo('VPN Legada','Ativo externo com serviço sensível exposto, fora do padrão atual e com owner incerto.','VPN velha na internet é relíquia que ainda morde.')"><b>vpn-old</b><small>443/8443 exposed</small></div>
+      <div class="node warn" style="right:42px;top:52px" onclick="openInfo('Cloud Footprint','Pegada em cloud/CDN/SaaS associada à organização, incluindo tenants, buckets, apps, edge services e provedores.','Cloud sem tag é um condomínio onde ninguém sabe quem paga o boleto.')"><b>cloud edge</b><small>CDN • SaaS • Bucket</small></div>
+      <div class="node" style="left:190px;bottom:38px" onclick="openInfo('Certificados TLS','Certificados ajudam a descobrir SANs, domínios relacionados, tecnologias, expiração e relações entre ativos.','Certificado é documento público... e às vezes fofoca técnica assinada.')"><b>TLS SANs</b><small>128 certs</small></div>
+      <div class="node crit" style="right:170px;bottom:62px" onclick="openInfo('Dangling DNS','Registro DNS aponta para recurso removido ou não reivindicado, criando risco de subdomain takeover.','CNAME órfão é chave embaixo do tapete, só que o tapete é a internet.')"><b>staging-cdn</b><small>dangling CNAME</small></div>
+      <button class="hotspot" id="hs1" onclick="tourStep(0)">➜</button>
+      <button class="hotspot" id="hs2" onclick="tourStep(1)">➜</button>
+      <button class="hotspot" id="hs3" onclick="tourStep(2)">➜</button>
+      <button class="hotspot" id="hs4" onclick="tourStep(3)">➜</button>
+    </div>
+  </section>
+
+  <section class="panel risk" id="riskPanel">
+    <div class="panel-head"><div class="title">Risk Prioritization</div><div class="badge yellow">CONTEXTUAL</div></div>
+    <div class="risk-body">
+      <div class="risk-row" onclick="openInfo('Exposure Score','Score combina exposição externa, criticidade, explorabilidade, evidência, sensibilidade e política violada.','CVSS sem contexto é horóscopo com decimal.')"><div><span>RDP/SSH exposto</span><small>internet-facing admin services</small></div><div class="score red">97</div></div>
+      <div class="risk-row" onclick="openInfo('Exploitability','A priorização deve considerar chance real de exploração, não só severidade teórica. EPSS, KEV e contexto ajudam.','Nem toda CVE merece sirene, mas algumas já entram chutando a porta.')"><div><span>CVE explorável em VPN</span><small>known exploited pattern</small></div><div class="score red">94</div></div>
+      <div class="risk-row" onclick="openInfo('DNS Takeover','Risco de domínio/subdomínio ser reivindicado por terceiros por apontar para recurso inexistente.','Subdomínio abandonado é lote vago em bairro nobre.')"><div><span>Dangling CNAME</span><small>takeover candidate</small></div><div class="score yellow">82</div></div>
+      <div class="risk-row" onclick="openInfo('TLS Hygiene','Certificados expirados, algoritmos fracos e naming exposto ajudam no mapeamento e indicam descuido operacional.','TLS vencido é o post-it do caos colado no navegador.')"><div><span>TLS expirado</span><small>cert governance drift</small></div><div class="score yellow">68</div></div>
+      <button class="hotspot" id="hs5" onclick="tourStep(4)">➜</button>
+      <button class="hotspot" id="hs6" onclick="tourStep(5)">➜</button>
+      <button class="hotspot" id="hs7" onclick="tourStep(6)">➜</button>
+    </div>
+  </section>
+
+  <section class="panel inventory" id="inventoryPanel">
+    <div class="panel-head"><div class="title">Inventory & Ownership</div><div class="badge green">18.742 ASSETS</div></div>
+    <table class="table">
+      <thead><tr><th>Ativo</th><th>Tipo</th><th>Owner</th><th>Status</th><th>Última evidência</th></tr></thead>
+      <tbody>
+        <tr onclick="openInfo('Inventário vivo','Inventário EASM registra ativos externos com metadados: tipo, tecnologia, owner provável, fonte de descoberta, tags e estado.','Planilha anual de ativo é arqueologia corporativa.')"><td>api-v2.besafe-lab.io</td><td><span class="pill">Web API</span></td><td>AppSec</td><td><span class="pill yellow">Review</span></td><td>DNS + TLS</td></tr>
+        <tr><td>vpn-old.besafe-lab.io</td><td><span class="pill red">VPN</span></td><td>Unknown</td><td><span class="pill red">Critical</span></td><td>Port scan</td></tr>
+        <tr><td>cdn-staging.besafe-lab.io</td><td><span class="pill yellow">CNAME</span></td><td>Marketing</td><td><span class="pill yellow">Orphan</span></td><td>DNS</td></tr>
+        <tr><td>assets-besafe-public</td><td><span class="pill">Cloud Storage</span></td><td>CloudOps</td><td><span class="pill yellow">Validate</span></td><td>Cloud footprint</td></tr>
+      </tbody>
+    </table>
+    <button class="hotspot" id="hs8" onclick="tourStep(7)">➜</button>
+    <button class="hotspot" id="hs9" onclick="tourStep(8)">➜</button>
+  </section>
+
+  <section class="panel findings" id="findingsPanel">
+    <div class="panel-head"><div class="title">Exposure Findings</div><div class="badge red">ACTION REQUIRED</div></div>
+    <div class="find-list">
+      <div class="find" onclick="openInfo('Serviço administrativo exposto','RDP, SSH, VNC, painéis admin e VPNs expostos devem ser reduzidos, segmentados, protegidos por MFA, restritos por IP ou removidos da internet.','Admin aberto para o mundo é turismo de atacante.')"><b>RDP público detectado em IP associado</b><small>Critical • policy violation • internet-facing</small></div>
+      <div class="find" onclick="openInfo('Web App Risk','EASM identifica tecnologias, headers, cookies, login pages, WAF evidence e indícios para acionar DAST/pentest.','Header ausente não invade sozinho, mas entrega o mapa da festa.')"><b>Aplicação web sem headers de segurança</b><small>Medium • web posture • needs validation</small></div>
+      <div class="find med" onclick="openInfo('Certificado expirado','Governança de certificados reduz indisponibilidade, warning de navegador e pistas desnecessárias sobre naming e infraestrutura.','Certificado vencido é o SLA pedindo demissão.')"><b>Certificado TLS expirado há 19 dias</b><small>Medium • TLS hygiene</small></div>
+      <div class="find low" onclick="openInfo('Terceiros e M&A','EASM deve mapear subsidiárias, aquisições, fornecedores, SaaS e terceiros associados à marca.','Terceiro sem governança é risco usando crachá de visitante.')"><b>Domínio de fornecedor relacionado à marca</b><small>Info • third-party relationship</small></div>
+    </div>
+    <button class="hotspot" id="hs10" onclick="tourStep(9)">➜</button>
+    <button class="hotspot" id="hs11" onclick="tourStep(10)">➜</button>
+  </section>
+
+  <section class="panel workflow" id="workflowPanel">
+    <div class="panel-head"><div class="title">Exposure Remediation & Validation</div><div class="badge green">SIEM • SOAR • VM • ITSM</div></div>
+    <div class="workflow-body">
+      <div class="step" onclick="openInfo('Detectar','O EASM detecta mudança nova na superfície: novo ativo, nova porta, certificado alterado, DNS órfão ou violação de política.','Mudança silenciosa é incidente fazendo alongamento.')"><div class="ico">🛰️</div><b>Detectar</b><small>continuous discovery</small></div><div class="arr">➜</div>
+      <div class="step" onclick="openInfo('Enriquecer','Enriquecimento com DNS, TLS, ASN, cloud, tecnologia, owner provável, CVE, KEV, EPSS e criticidade.','Contexto é o que separa alerta útil de confete técnico.')"><div class="ico">🧬</div><b>Enriquecer</b><small>context graph</small></div><div class="arr">➜</div>
+      <div class="step" onclick="openInfo('Priorizar','Priorização orientada ao risco externo, não só por severidade isolada.','Fila infinita de CVE sem prioridade é academia para burnout.')"><div class="ico">🎯</div><b>Priorizar</b><small>risk scoring</small></div><div class="arr">➜</div>
+      <div class="step" onclick="openInfo('Acionar','Integração com VM, SIEM, SOAR, ticketing, CMDB, GRC e APIs para abrir fluxo de remediação.','Dashboard que não aciona ninguém é aquário de alerta.')"><div class="ico">⚡</div><b>Acionar</b><small>SOAR / ITSM</small></div><div class="arr">➜</div>
+      <div class="step" onclick="openInfo('Verificar','Depois da correção, o EASM valida se a exposição saiu da internet e mantém evidência histórica.','Fechou o ticket sem validar? O risco só trocou de roupa.')"><div class="ico">✅</div><b>Verificar</b><small>evidence loop</small></div>
+    </div>
+    <button class="hotspot" id="hs12" onclick="tourStep(11)">➜</button>
+  </section>
+</main>
+
+<div class="tour-overlay" id="tourOverlay">
+  <div class="tour-highlight" id="highlight"></div>
+  <div class="tour-card" id="tourCard">
+    <button class="tour-x" onclick="closeTour()">×</button>
+    <div class="tour-progress"><div id="tourProgress"></div></div>
+    <div class="tour-h"><div class="num" id="tourNum">1</div><b id="tourTitle">Título</b></div>
+    <div class="tour-body" id="tourBody"></div>
+    <div class="tour-tech" id="tourTech"></div>
+    <div class="tour-actions">
+      <button class="arrow" id="prevBtn" onclick="prevTour()">◀</button>
+      <div><div class="count" id="tourCount"></div><div class="skip" onclick="closeTour()">pular tour</div></div>
+      <button class="arrow" id="nextBtn" onclick="nextTour()">▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="box"><button onclick="closeModal()">×</button><h3 id="mTitle"></h3><p id="mBody"></p><div class="tech" id="mTech"></div></div></div>
+
+<div class="cert-modal" id="certModal">
+  <div class="cert">
+    <div class="cert-head"><h2>EASM BE SAFE</h2><small>EXTERNAL ATTACK SURFACE MANAGEMENT</small></div>
+    <div class="cert-body2">
+      <div class="ribbon">CERTIFICADO DE CONCLUSÃO</div>
+      <p style="margin-top:18px;color:var(--muted)">Certificamos que</p>
+      <div class="cert-name" id="certName">Participante</div>
+      <p style="color:#cbdcf5;line-height:1.6">concluiu o tour guiado premium de EASM Be Safe, cobrindo descoberta externa, inventário, shadow IT, DNS, TLS, cloud, exposição de serviços, priorização de risco e resposta integrada.</p>
+      <p style="margin-top:10px;color:var(--yellow);font-family:var(--mono)">Carga horária: 2 horas</p>
+      <div class="topics">
+        <div><b>Discovery:</b> seeds, ASN, IP ranges, DNS, TLS e relações públicas</div>
+        <div><b>Inventory:</b> owners, tags, metadados, evidência e lifecycle</div>
+        <div><b>Risk:</b> exposição, exploitability, criticidade e política</div>
+        <div><b>Response:</b> VM, SIEM, SOAR, ITSM, CMDB, GRC e APIs</div>
+      </div>
+      <div class="signature">Mariana BS</div>
+      <p><b>Mariana BS, Instrutora</b></p>
+      <button class="btn hot" onclick="window.print()" style="margin-top:16px">Imprimir / Salvar PDF</button>
+      <button class="btn" onclick="closeCert()" style="margin-top:16px">Fechar</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+
+let muted=false;
+let audioCtx=null;
+function ensureAudio(){
+  if(!audioCtx){
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    if(Ctx) audioCtx=new Ctx();
+  }
+}
+function playTone(freq=780,dur=.08,type="sine",vol=.045){
+  if(muted) return;
+  ensureAudio();
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.type=type;o.frequency.value=freq;
+  g.gain.setValueAtTime(vol,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
+  o.connect(g);g.connect(audioCtx.destination);
+  o.start();o.stop(audioCtx.currentTime+dur);
+}
+function playClickSound(){playTone(820,.055,"square",.03)}
+function playSuccessSound(){[523,659,784].forEach((f,i)=>setTimeout(()=>playTone(f,.12,"sine",.04),i*85))}
+function playAlertSound(){[880,660].forEach((f,i)=>setTimeout(()=>playTone(f,.12,"sawtooth",.035),i*95))}
+function toggleMute(){
+  muted=!muted;
+  const b=document.getElementById("muteBtn");
+  if(b) b.textContent=muted ? "🔇 Mudo" : "🔊 Som";
+  if(!muted) playSuccessSound();
+}
+
+const tour = [
+ {target:"#mapPanel", hs:"#hs1", title:"Discovery contínuo", body:"O EASM começa olhando de fora para dentro. Ele descobre ativos expostos usando domínios semente, ASN, ranges de IP, DNS, certificados, crawling e relações públicas entre propriedades digitais.", tech:"Referência de mercado: descoberta contínua, mapeamento da superfície digital e visibilidade de ativos conhecidos e desconhecidos. Humor: seu CMDB acredita em Papai Noel."},
+ {target:"#attackMap", hs:"#hs2", title:"Grafo de relacionamento", body:"A superfície externa não é uma lista plana. O grafo mostra relações entre domínios, subdomínios, certificados, provedores, cloud, CDN, SaaS e infraestrutura de terceiros.", tech:"Funcionalidade esperada: asset relationship graph, evidence chain, attribution e contexto de descoberta."},
+ {target:"#attackMap", hs:"#hs3", title:"Cloud, SaaS e terceiros", body:"EASM maduro identifica pegadas em cloud, CDN, SaaS, fornecedores, subsidiárias e ativos herdados em fusões e aquisições.", tech:"Terceiro sem visibilidade vira risco com crachá de visitante permanente."},
+ {target:"#attackMap", hs:"#hs4", title:"DNS e certificados", body:"DNS e TLS entregam muita coisa: SANs, subdomínios, emissores, expiração, naming interno e pistas de infraestrutura. É inteligência passiva com cara de inventário.", tech:"Casos clássicos: dangling DNS, subdomain takeover, certificados expirados e descoberta por SAN."},
+ {target:"#riskPanel", hs:"#hs5", title:"Priorização contextual", body:"A plataforma não deve só gritar CVE. Ela precisa priorizar por exposição real na internet, criticidade do ativo, exploitability, política violada e impacto.", tech:"CVSS sozinho é horóscopo técnico quando ignora contexto de negócio."},
+ {target:"#riskPanel", hs:"#hs6", title:"Exploitability e exposição", body:"Um serviço vulnerável fora da internet pode ter uma urgência. O mesmo serviço exposto publicamente, explorável e sem owner vira emergência.", tech:"Bom EASM combina vulnerabilidade, exposição, evidência e probabilidade de exploração."},
+ {target:"#riskPanel", hs:"#hs7", title:"Políticas de exposição", body:"Crie políticas: RDP público, SSH aberto, bucket público, TLS vencido, admin panel externo, CNAME órfão, VPN legada e ativo sem dono.", tech:"Sem política, o dashboard vira decoração cyberpunk."},
+ {target:"#inventoryPanel", hs:"#hs8", title:"Inventário vivo", body:"Inventário EASM precisa ter tipo de ativo, fonte da evidência, última observação, status, owner provável, tags, tecnologia e lifecycle.", tech:"Tenable ASM documenta inventários e metadados; plataformas maduras exportam e integram isso com processos."},
+ {target:"#inventoryPanel", hs:"#hs9", title:"Owner e shadow IT", body:"O ponto não é só descobrir. É descobrir quem é dono, se é gerenciado, se está aprovado e como corrigir. Shadow IT sem owner é incidente em modo gestação.", tech:"Funcionalidade esperada: tags, exclusões, regras, inventários, ownership e workflow de validação."},
+ {target:"#findingsPanel", hs:"#hs10", title:"Findings acionáveis", body:"Achado bom precisa vir com evidência, impacto, recurso afetado, recomendação, prioridade e integração para remediação.", tech:"Exposição sem evidência vira opinião. E opinião não fecha porta aberta."},
+ {target:"#findingsPanel", hs:"#hs11", title:"Web posture e validação", body:"EASM identifica pistas de postura web: headers, cookies, login pages, tecnologias, WAF, páginas administrativas e caminhos para DAST/pentest.", tech:"EASM não substitui DAST completo; ele aponta onde vale investigar primeiro."},
+ {target:"#workflowPanel", hs:"#hs12", title:"Integração e resposta", body:"O ciclo premium é detectar, enriquecer, priorizar, acionar e verificar. Integra com VM, SIEM, SOAR, ITSM, CMDB, GRC e APIs.", tech:"Remediação sem validação é ticket com autoestima. Parece resolvido, mas a internet discorda."}
+];
+let current=0;
+let done = JSON.parse(localStorage.getItem("easmDone")||"[]");
+
+function $(q){return document.querySelector(q)}
+function clock(){const d=new Date();$("#clock").innerHTML=d.toLocaleDateString("pt-BR")+"<br><b>"+d.toLocaleTimeString("pt-BR")+"</b> UTC-3"} setInterval(clock,1000); clock();
+
+function renderNav(){
+ const nav=$("#nav"); nav.innerHTML="";
+ tour.forEach((t,i)=>{
+   const div=document.createElement("div");
+   div.className="nav-item "+(done.includes(i)?"done ":"")+(current===i?"active":"");
+   div.innerHTML=(done.includes(i)?"✓":"➜")+" "+t.title;
+   div.onclick=()=>tourStep(i);
+   nav.appendChild(div);
+   const hs=$(t.hs); if(hs){hs.classList.toggle("done", done.includes(i)); hs.textContent=done.includes(i)?"✓":"➜";}
+ });
+ const pct=Math.round(done.length/tour.length*100);
+ $("#bar").style.width=pct+"%"; $("#doneTxt").textContent=done.length+"/"+tour.length; $("#pctTxt").textContent=pct+"%";
+}
+function saveDone(i){if(!done.includes(i)){done.push(i);localStorage.setItem("easmDone",JSON.stringify(done));toast("Módulo concluído: "+tour[i].title)}}
+
+function startTour(){playSuccessSound();tourStep(0)}
+function tourStep(i){
+ current=i; saveDone(i); renderNav();
+ const t=tour[i]; const target=$(t.target); const hs=$(t.hs);
+ const r=(hs||target).getBoundingClientRect(); const tr=target.getBoundingClientRect();
+ const overlay=$("#tourOverlay"), h=$("#highlight"), card=$("#tourCard");
+ overlay.classList.add("active"); h.style.display="block"; card.style.display="block";
+ h.style.left=(tr.left-6)+"px"; h.style.top=(tr.top-6)+"px"; h.style.width=(tr.width+12)+"px"; h.style.height=(tr.height+12)+"px";
+ $("#tourNum").textContent=i+1; $("#tourTitle").textContent=t.title; $("#tourBody").textContent=t.body; $("#tourTech").textContent=t.tech;
+ $("#tourCount").textContent=(i+1)+" / "+tour.length; $("#tourProgress").style.width=Math.round((i+1)/tour.length*100)+"%";
+ $("#prevBtn").style.visibility=i===0?"hidden":"visible"; $("#nextBtn").textContent=i===tour.length-1?"✓":"▶";
+ let left = Math.min(Math.max(r.right+18,18), window.innerWidth-410);
+ let top = Math.min(Math.max(r.top-20,84), window.innerHeight-260);
+ if(window.innerWidth<760){left=18;top=Math.min(r.bottom+18,window.innerHeight-320)}
+ card.style.left=left+"px"; card.style.top=top+"px";
+ target.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function nextTour(){playClickSound(); if(current<tour.length-1) tourStep(current+1); else {closeTour(); issueCert();} }
+function prevTour(){playClickSound(); if(current>0) tourStep(current-1) }
+function closeTour(){playClickSound(); $("#tourOverlay").classList.remove("active"); $("#highlight").style.display="none"; $("#tourCard").style.display="none"; renderNav(); }
+
+function openInfo(title, body, tech){playClickSound();$("#mTitle").textContent=title;$("#mBody").textContent=body;$("#mTech").textContent=tech;$("#modal").classList.add("show")}
+function closeModal(){$("#modal").classList.remove("show")}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",2600)}
+function resetLab(){playAlertSound();localStorage.removeItem("easmDone");done=[];renderNav();toast("Laboratório resetado. O caos voltou ao baseline.")}
+function issueCert(){playSuccessSound();
+ if(done.length<tour.length){toast("Finalize todos os módulos antes do certificado. Auditoria também tem sentimentos.");return}
+ const name=$("#student").value.trim()||"Participante";
+ $("#certName").textContent=name; $("#certModal").classList.add("show");
+}
+function closeCert(){$("#certModal").classList.remove("show")}
+renderNav();
+</script>
+</body>
+</html>
